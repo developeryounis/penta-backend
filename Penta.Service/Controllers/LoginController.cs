@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -30,15 +31,15 @@ namespace Penta.Service.Controllers
         }
         [HttpPost]
         [Route("Login")]
-        public async Task<IActionResult> LoginAsync([FromBody] LoginViewModel login)
+        public async Task<ActionResult<LoginToken>> LoginAsync([FromBody] LoginViewModel login)
         {
-            IActionResult response = Unauthorized();
+            ActionResult response = Unauthorized();
             var user = await _applicationUserService.Login(login);
 
             if (user != null)
             {
                 var tokenString = GenerateJSONWebToken(user);
-                response = Ok(new { token = tokenString });
+                response = Ok(new LoginToken { Token = tokenString });
             }
 
             return response;
@@ -51,7 +52,7 @@ namespace Penta.Service.Controllers
             var claims = new List<Claim> 
             { 
                 new Claim(JwtRegisteredClaimNames.Sub, userInfo.Username),
-                new Claim(JwtRegisteredClaimNames.NameId, userInfo.Id.ToString())
+                new Claim("Id", userInfo.Id.ToString())
             };
 
             userInfo.Privileges.Select(x => x.Privilege.Name)
@@ -59,7 +60,7 @@ namespace Penta.Service.Controllers
                 .ForEach(p => claims.Add(new Claim(JwtRegisteredClaimNames.Iat, p.ToString())));
 
             var token = new JwtSecurityToken(_config["Jwt:Issuer"],
-            _config["Jwt:Issuer"],
+            _config["Jwt:Audience"],
             claims,
             expires: DateTime.Now.AddMinutes(120),
             signingCredentials: credentials);

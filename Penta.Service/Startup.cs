@@ -1,3 +1,4 @@
+using AutoMapper;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -32,8 +33,6 @@ namespace Penta.Service
         }
 
         public IConfiguration Configuration { get; }
-
-        // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -46,12 +45,19 @@ namespace Penta.Service
                             ValidateLifetime = true,
                             ValidateIssuerSigningKey = true,
                             ValidIssuer = Configuration["Jwt:Issuer"],
-                            ValidAudience = Configuration["Jwt:Issuer"],
+                            ValidAudience = Configuration["Jwt:Audience"],
                             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["Jwt:Key"]))
                         };
                     });
 
+            services.AddSingleton<IApplicationUserService, ApplicationUserService>();
+            services.AddSingleton<IStudentService, StudentService>();
+
+            services.AddSingleton<IApplicationUserRepository, ApplicationUserRepository>();
+            services.AddSingleton<IStudentRepository, StudentRepository>();
+
             services.AddControllers();
+
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "Penta.Service", Version = "v1" });
@@ -59,14 +65,17 @@ namespace Penta.Service
 
             services.AddAutoMapper(typeof(Startup));
 
-            services.AddSingleton<IApplicationUserRepository, ApplicationUserRepository>();
-            services.AddSingleton<IStudentRepository, StudentRepository>();
+            services.AddCors(options =>
+            {
+                options.AddPolicy("CorsPolicy",
+                    builder => builder.AllowAnyOrigin()
+                    .AllowAnyMethod()
+                    .AllowAnyHeader()
+                    );
+            });
 
-            services.AddSingleton<IApplicationUserService, ApplicationUserService>();
-            services.AddSingleton<IStudentService, StudentService>();
+           
         }
-
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
@@ -76,9 +85,13 @@ namespace Penta.Service
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Penta.Service v1"));
             }
 
+            app.UseCors("CorsPolicy");
+
             app.UseHttpsRedirection();
 
             app.UseRouting();
+
+            app.UseAuthentication();
 
             app.UseAuthorization();
 
@@ -86,6 +99,8 @@ namespace Penta.Service
             {
                 endpoints.MapControllers();
             });
+            
+
         }
     }
 }

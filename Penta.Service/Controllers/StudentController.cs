@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Penta.Service.Services;
+using Penta.Service.Services.Interface;
 using Penta.Service.ViewModels;
 using Penta.Service.ViewModels.Validation;
 using System;
@@ -15,23 +15,24 @@ namespace Penta.Service.Controllers
     [Authorize]
     public class StudentController : ControllerBase
     {
-        private readonly StudentService _studentService;
+        private readonly IStudentService _studentService;
 
         public int UserId
         {
             get
             {
-                return Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == JwtRegisteredClaimNames.NameId).Value);
+                return Convert.ToInt32(User.Claims.FirstOrDefault(x => x.Type == "Id").Value);
             }
         }
 
-        public StudentController(StudentService studentService)
+        public StudentController(IStudentService studentService)
         {
             _studentService = studentService;
         }
         [HttpGet]
         [Route(PolicyConstants.Search)]
-        public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        [Authorize]
+        public async Task<ActionResult<StudentPage>> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
             if (HasAccess(PolicyConstants.Search))
             {
@@ -44,7 +45,7 @@ namespace Penta.Service.Controllers
 
         [HttpGet]
         [Route(PolicyConstants.Search + "/{search}")]
-        public async Task<IActionResult> GetAll([FromRoute] string search, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        public async Task<ActionResult<StudentPage>> GetAll([FromRoute] string search, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
             if (HasAccess(PolicyConstants.Search))
             {
@@ -56,7 +57,7 @@ namespace Penta.Service.Controllers
 
         [HttpPost]
         [Route(PolicyConstants.Add)]
-        public async Task<IActionResult> Add(StudentViewModel studentViewModel)
+        public async Task<ActionResult<StudentViewModel>> Add(StudentViewModel studentViewModel)
         {
             if (HasAccess(PolicyConstants.Add))
             {
@@ -112,14 +113,7 @@ namespace Penta.Service.Controllers
 
         private bool HasAccess(string name)
         {
-            var result = User.Claims.FirstOrDefault(x => x.Type == JwtRegisteredClaimNames.Iat);
-
-            if (result != null)
-            {
-                return result.Value.Split(",").Contains(name);
-            }
-
-            return false;
+            return User.Claims.Any(x => x.Type == JwtRegisteredClaimNames.Iat && x.Value == name);
         }
     }
 }

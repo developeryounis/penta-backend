@@ -6,4 +6,9 @@
 
         public string Password { get; set; }
     }
+
+    public class LoginToken
+    {
+        public string Token { get; set; }
+    }
 }
